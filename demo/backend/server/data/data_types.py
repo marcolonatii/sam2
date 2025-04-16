@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Dict # Added Dict
 
 import strawberry
 from app_conf import API_URL
@@ -29,7 +29,10 @@ class Video(relay.Node):
 
     @strawberry.field
     def poster_url(self) -> str:
-        return f"{API_URL}/{self.poster_path}"
+        # Ensure poster_path exists before creating URL
+        if self.poster_path:
+            return f"{API_URL}/{self.poster_path}"
+        return "" # Return empty string or handle as appropriate if no poster
 
     @classmethod
     def resolve_nodes(
@@ -57,6 +60,7 @@ class RLEMaskForObject:
 
     object_id: int
     rle_mask: RLEMask
+    name: Optional[str] = None # Added optional name field
 
 
 @strawberry.type
@@ -91,6 +95,7 @@ class YOLOBoxForObject:
     """Type for a YOLO bounding box associated with a specific object id."""
     object_id: int
     box: List[float]  # [x_center, y_center, width, height] normalized between 0 and 1
+    name: Optional[str] = None # Added optional name field
 
 
 @strawberry.type
@@ -201,3 +206,16 @@ class SessionInfo:
     last_use_time: float  # Timestamp of the last interaction with the session
     num_frames: int  # Number of frames in the session's video
     num_objects: int  # Number of tracked objects in the session
+
+# --- New types for setting object names ---
+@strawberry.input
+class SetObjectNameInput:
+    """Input type for the setObjectName mutation."""
+    session_id: str
+    object_id: int
+    name: str # The new name for the object (empty string clears the custom name)
+
+@strawberry.type
+class SetObjectNameResponse:
+    """Response type for the setObjectName mutation."""
+    success: bool

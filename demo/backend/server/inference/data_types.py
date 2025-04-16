@@ -1,3 +1,4 @@
+# /home/david_elliott/github/sam2/demo/backend/server/inference/data_types.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 # This source code is licensed under the license found in the
@@ -182,13 +183,28 @@ class CancelPorpagateResponse:
     success: bool
 
 
+# <<< Added ClickData definition >>>
+@dataclass_json
+@dataclass
+class ClickData:
+    """Represents user click data for a specific frame and object."""
+    frame_index: int
+    object_id: int
+    points: List[List[float]] # Coordinates [[x1, y1], [x2, y2], ...]
+    labels: List[int]          # Click labels (e.g., 1 for positive, 0 for negative)
+
+
 @dataclass_json
 @dataclass
 class InferenceSession:
+    """Represents the state of an active inference session in memory (simplified)."""
     start_time: float
     last_use_time: float
     session_id: str
-    state: Dict[str, Dict[str, Union[Tensor, Dict[int, Tensor]]]]
+    # Note: The actual 'state' is complex and managed within InferenceAPI/predictor,
+    # this definition might be used for basic session tracking if needed elsewhere.
+    # state: Dict[str, Dict[str, Union[Tensor, Dict[int, Tensor]]]] # Example structure
+
 
 @dataclass_json
 @dataclass
@@ -199,8 +215,9 @@ class DownloadMasksRequest(BaseRequest):
     """
     type: str
     session_id: str
-    
+
 @dataclass_json
 @dataclass
 class DownloadMasksResponse:
+    """Response containing masks for multiple frames."""
     results: List[PropagateDataResponse]

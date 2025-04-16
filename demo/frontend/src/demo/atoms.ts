@@ -172,3 +172,9 @@ export const messageMapAtom = atom<MessagesEventMap>(defaultMessageMap);
 export const uploadingStateAtom = atom<'default' | 'uploading' | 'error'>(
   'default',
 );
+
+// #####################
+// Tracklet Names
+// #####################
+
+export const trackletNamesAtom = atom<{ [id: number]: string }>({});

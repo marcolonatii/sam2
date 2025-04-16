@@ -48,6 +48,11 @@ POSTERS_PREFIX = "posters"
 # Path where all posters are stored
 POSTERS_PATH = DATA_PATH / POSTERS_PREFIX
 
+SESSIONS_PREFIX = "sessions"
+
+# Path where all sessions are stored
+SESSIONS_PATH = DATA_PATH / SESSIONS_PREFIX
+
 # Make sure any of those paths exist
 os.makedirs(DATA_PATH, exist_ok=True)
 os.makedirs(GALLERY_PATH, exist_ok=True)
