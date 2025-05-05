@@ -66,7 +66,7 @@ export default class ReplaceGLEffect extends BaseGLEffect {
     );
 
     // We know the max number of textures, pre-allocate 3.
-    this._maskTextures = preAllocateTextures(gl, 3);
+    this._maskTextures = preAllocateTextures(gl, 100);
 
     this._bitmap = []; // clear any previous pool of texture
 

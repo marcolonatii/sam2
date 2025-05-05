@@ -218,6 +218,7 @@ export class SAM2Model extends Tracker {
         -1,
       ) + 1;
 
+    console.log(`Creating a new tracklet with id ${nextId} and color ${THEME_COLORS[nextId % THEME_COLORS.length]}`);
     const newTracklet = {
       id: nextId,
       color: THEME_COLORS[nextId % THEME_COLORS.length],
