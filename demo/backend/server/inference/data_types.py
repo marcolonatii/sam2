@@ -1,4 +1,3 @@
-# /home/david_elliott/github/sam2/demo/backend/server/inference/data_types.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 # This source code is licensed under the license found in the

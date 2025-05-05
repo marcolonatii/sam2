@@ -8,7 +8,6 @@ import logging
 import os
 import atexit
 import signal
-import threading # Added for lock check
 from typing import Any, Generator, Tuple
 from io import BytesIO # Added BytesIO
 

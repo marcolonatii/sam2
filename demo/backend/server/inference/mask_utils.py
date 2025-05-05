@@ -1,4 +1,3 @@
-# /home/delliott@int-episci.com/sam2/demo/backend/server/inference/mask_utils.py
 """
 Module providing helper functions for working with segmentation masks.
 These functions convert masks to RLE data values using pycocotools.

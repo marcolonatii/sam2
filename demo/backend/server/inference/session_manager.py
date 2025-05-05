@@ -1,4 +1,3 @@
-# /home/delliott@int-episci.com/sam2/demo/backend/server/inference/session_manager.py
 """
 Module for managing inference sessions.
 Provides functions for retrieving a session, clearing session state,
@@ -7,11 +6,11 @@ generating session statistics, and handling persistence of object names.
 
 import logging
 import torch
-import json # Added import
-import os # Added import
-from pathlib import Path # Added import
-from typing import Dict # Added import
-from app_conf import SESSIONS_PATH # Added import
+import json
+import os
+from pathlib import Path
+from typing import Dict
+from app_conf import SESSIONS_PATH
 
 logger = logging.getLogger(__name__) # Define logger at module level
 

@@ -1,4 +1,3 @@
-# /home/david_elliott/github/sam2/demo/backend/server/inference/state_persistor.py
 """
 Module for persisting and loading inference session state (clicks, masks cache) to/from disk.
 """

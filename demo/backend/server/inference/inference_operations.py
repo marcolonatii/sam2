@@ -1,4 +1,3 @@
-# /home/delliott@int-episci.com/sam2/demo/backend/server/inference/inference_operations.py
 """
 Module containing inference operations that modify the segmentation state.
 This includes adding prompts, clearing points, removing objects, and propagating masks.

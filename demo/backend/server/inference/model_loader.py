@@ -1,4 +1,3 @@
-# /home/david_elliott/github/sam2/demo/backend/server/inference/model_loader.py
 """
 Module for loading the SAM2 video predictor model and handling device configuration.
 """

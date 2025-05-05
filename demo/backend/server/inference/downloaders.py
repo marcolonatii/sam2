@@ -1,5 +1,3 @@
-# File: /home/david_elliott/github/sam2-git/demo/backend/server/inference/downloaders.py
-# /home/delliott@int-episci.com/sam2/demo/backend/server/inference/downloaders.py
 """
 Module for downloading frames and masks, and generating downloadable archives.
 Provides functions to generate JPEG-encoded frames, compute/download masks,

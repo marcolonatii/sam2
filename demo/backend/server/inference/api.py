@@ -1,4 +1,3 @@
-# /home/david_elliott/github/sam2/demo/backend/server/inference/api.py
 """
 This module provides the main InferenceAPI class that manages inference sessions,
 delegating operations to specialized modules.

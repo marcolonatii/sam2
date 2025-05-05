@@ -1,4 +1,3 @@
-# /home/david_elliott/github/sam2/demo/backend/server/inference/video_reader.py
 """
 Module for reading frames from video files using OpenCV.
 """
