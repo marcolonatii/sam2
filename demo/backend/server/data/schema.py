@@ -7,7 +7,6 @@ import hashlib
 import os
 import shutil
 import tempfile
-from pathlib import Path
 from typing import Iterable, List, Optional, Tuple, Union
 
 import av
@@ -38,10 +37,9 @@ from data.data_types import (
 )
 from data.loader import get_video
 from data.store import get_videos
-from data.transcoder import get_video_metadata, transcode, VideoMetadata
+from data.transcoder import VideoMetadata, get_video_metadata, transcode
 from inference.data_types import (
     AddPointsRequest,
-    CancelPropagateInVideoRequest,
     CancelPropagateInVideoRequest,
     ClearPointsInFrameRequest,
     ClearPointsInVideoRequest,
@@ -56,7 +54,6 @@ from strawberry.file_uploads import Upload
 
 @strawberry.type
 class Query:
-
     @strawberry.field
     def default_video(self) -> Video:
         """
@@ -90,7 +87,6 @@ class Query:
 
 @strawberry.type
 class Mutation:
-
     @strawberry.mutation
     def upload_video(
         self,

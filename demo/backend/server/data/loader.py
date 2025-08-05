@@ -53,7 +53,7 @@ def get_video(
     poster_path = None
     if generate_poster:
         poster_id = os.path.splitext(os.path.basename(filepath))[0]
-        poster_filename = f"{str(poster_id)}.jpg"
+        poster_filename = f"{poster_id!s}.jpg"
         poster_path = f"{POSTERS_PREFIX}/{poster_filename}"
 
         # Extract the first frame from video

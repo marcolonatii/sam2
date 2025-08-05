@@ -6,7 +6,6 @@ services:
       dockerfile: frontend.Dockerfile
     ports:
       - 7262:80
-
   backend:
     image: sam2/backend
     build:

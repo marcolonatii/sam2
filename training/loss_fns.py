@@ -13,7 +13,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from training.trainer import CORE_LOSS_KEY
-
 from training.utils.distributed import get_world_size, is_dist_avail_and_initialized
 
 

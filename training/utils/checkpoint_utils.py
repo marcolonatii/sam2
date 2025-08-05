@@ -37,9 +37,9 @@ def unix_pattern_to_parameter_names(
     parameter_names = []
     for param_name in constraints:
         matching_parameters = set(fnmatch.filter(all_parameter_names, param_name))
-        assert (
-            len(matching_parameters) > 0
-        ), f"param_names {param_name} don't match any param in the given names."
+        assert len(matching_parameters) > 0, (
+            f"param_names {param_name} don't match any param in the given names."
+        )
         parameter_names.append(matching_parameters)
     return set.union(*parameter_names)
 
@@ -153,7 +153,7 @@ def with_check_parameter_frozen(
 
     if not np.allclose(summary_before, summary_after, atol=1e-6):
         raise ValueError(
-            f"""
+            """
             The `model_weight_initializer` has initialized parameters frozen with `skip_saving_parameters`.
             You can resolve this error by either initializing those parameters from within the model definition
             or using the flag `trainer.checkpoint.initialize_after_preemption` to True.

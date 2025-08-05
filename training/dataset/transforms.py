@@ -9,7 +9,6 @@ Transforms and data augmentation for both image + bbox.
 """
 
 import logging
-
 import random
 from typing import Iterable
 
@@ -18,14 +17,12 @@ import torchvision.transforms as T
 import torchvision.transforms.functional as F
 import torchvision.transforms.v2.functional as Fv2
 from PIL import Image as PILImage
-
 from torchvision.transforms import InterpolationMode
 
 from training.utils.data_utils import VideoDatapoint
 
 
 def hflip(datapoint, index):
-
     datapoint.frames[index].data = F.hflip(datapoint.frames[index].data)
     for obj in datapoint.frames[index].objects:
         if obj.segment is not None:
@@ -74,7 +71,7 @@ def resize(datapoint, index, size, max_size=None, square=False, v2=False):
         )
         size = get_size(cur_size, size, max_size)
 
-    old_size = (
+    (
         datapoint.frames[index].data.size()[-2:][::-1]
         if v2
         else datapoint.frames[index].data.size
@@ -86,7 +83,7 @@ def resize(datapoint, index, size, max_size=None, square=False, v2=False):
     else:
         datapoint.frames[index].data = F.resize(datapoint.frames[index].data, size)
 
-    new_size = (
+    (
         datapoint.frames[index].data.size()[-2:][::-1]
         if v2
         else datapoint.frames[index].data.size
@@ -443,7 +440,7 @@ def random_mosaic_frame(
             W_im_downsize = x_offset_e - x_offset_b
 
             if (H_im_downsize, W_im_downsize) in downsize_cache:
-                image_data_downsize = downsize_cache[(H_im_downsize, W_im_downsize)]
+                image_data_downsize = downsize_cache[H_im_downsize, W_im_downsize]
             else:
                 image_data_downsize = F.resize(
                     image_data,
@@ -451,7 +448,7 @@ def random_mosaic_frame(
                     interpolation=InterpolationMode.BILINEAR,
                     antialias=True,  # antialiasing for downsizing
                 )
-                downsize_cache[(H_im_downsize, W_im_downsize)] = image_data_downsize
+                downsize_cache[H_im_downsize, W_im_downsize] = image_data_downsize
             if should_hflip[grid_y, grid_x].item():
                 image_data_downsize = F.hflip(image_data_downsize)
 

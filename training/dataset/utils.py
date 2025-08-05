@@ -11,7 +11,11 @@ from typing import Iterable
 import torch
 from torch.utils.data import (
     ConcatDataset as TorchConcatDataset,
+)
+from torch.utils.data import (
     Dataset,
+)
+from torch.utils.data import (
     Subset as TorchSubset,
 )
 

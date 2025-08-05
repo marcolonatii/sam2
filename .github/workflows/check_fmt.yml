@@ -2,7 +2,7 @@ name: SAM2/fmt
 on:
   pull_request:
     branches:
-    - main
+      - main
 jobs:
   ufmt_check:
     runs-on: ubuntu-latest

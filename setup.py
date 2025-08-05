@@ -1,68 +1,13 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 
+
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 import os
 
-from setuptools import find_packages, setup
-
-# Package metadata
-NAME = "SAM-2"
-VERSION = "1.0"
-DESCRIPTION = "SAM 2: Segment Anything in Images and Videos"
-URL = "https://github.com/facebookresearch/sam2"
-AUTHOR = "Meta AI"
-AUTHOR_EMAIL = "segment-anything@meta.com"
-LICENSE = "Apache 2.0"
-
-# Read the contents of README file
-with open("README.md", "r", encoding="utf-8") as f:
-    LONG_DESCRIPTION = f.read()
-
-# Required dependencies
-REQUIRED_PACKAGES = [
-    "torch>=2.5.1",
-    "torchvision>=0.20.1",
-    "numpy>=1.24.4",
-    "tqdm>=4.66.1",
-    "hydra-core>=1.3.2",
-    "iopath>=0.1.10",
-    "pillow>=9.4.0",
-]
-
-EXTRA_PACKAGES = {
-    "notebooks": [
-        "matplotlib>=3.9.1",
-        "jupyter>=1.0.0",
-        "opencv-python>=4.7.0",
-        "eva-decord>=0.6.1",
-    ],
-    "interactive-demo": [
-        "Flask>=3.0.3",
-        "Flask-Cors>=5.0.0",
-        "av>=13.0.0",
-        "dataclasses-json>=0.6.7",
-        "eva-decord>=0.6.1",
-        "gunicorn>=23.0.0",
-        "imagesize>=1.4.1",
-        "pycocotools>=2.0.8",
-        "strawberry-graphql>=0.243.0",
-    ],
-    "dev": [
-        "black==24.2.0",
-        "usort==1.0.2",
-        "ufmt==2.0.0b2",
-        "fvcore>=0.1.5.post20221221",
-        "pandas>=2.2.2",
-        "scikit-image>=0.24.0",
-        "tensorboard>=2.17.0",
-        "pycocotools>=2.0.8",
-        "tensordict>=0.6.0",
-        "opencv-python>=4.7.0",
-        "submitit>=1.5.1",
-    ],
-}
+from setuptools import setup
+from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 # By default, we also build the SAM 2 CUDA extension.
 # You may turn off CUDA build with `export SAM2_BUILD_CUDA=0`.
@@ -88,8 +33,6 @@ def get_extensions():
         return []
 
     try:
-        from torch.utils.cpp_extension import CUDAExtension
-
         srcs = ["sam2/csrc/connected_components.cu"]
         compile_args = {
             "cxx": [],
@@ -112,10 +55,8 @@ def get_extensions():
 
 
 try:
-    from torch.utils.cpp_extension import BuildExtension
 
     class BuildExtensionIgnoreErrors(BuildExtension):
-
         def finalize_options(self):
             try:
                 super().finalize_options()
@@ -152,23 +93,7 @@ except Exception as e:
     else:
         raise e
 
-
-# Setup configuration
 setup(
-    name=NAME,
-    version=VERSION,
-    description=DESCRIPTION,
-    long_description=LONG_DESCRIPTION,
-    long_description_content_type="text/markdown",
-    url=URL,
-    author=AUTHOR,
-    author_email=AUTHOR_EMAIL,
-    license=LICENSE,
-    packages=find_packages(exclude="notebooks"),
-    include_package_data=True,
-    install_requires=REQUIRED_PACKAGES,
-    extras_require=EXTRA_PACKAGES,
-    python_requires=">=3.10.0",
     ext_modules=get_extensions(),
     cmdclass=cmdclass,
 )

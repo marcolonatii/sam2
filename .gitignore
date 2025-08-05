@@ -9,3 +9,6 @@ _C.*
 outputs/*
 checkpoints/*.pt
 demo/backend/checkpoints/*.pt
+build/
+src/sam2/checkpoints/sam2.1_hiera_large.pt
+sam2.1_hiera_large.pt

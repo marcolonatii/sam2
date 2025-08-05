@@ -9,7 +9,6 @@ import random
 from copy import deepcopy
 
 import numpy as np
-
 import torch
 from iopath.common.file_io import g_pathmgr
 from PIL import Image as PILImage
@@ -18,7 +17,6 @@ from torchvision.datasets.vision import VisionDataset
 from training.dataset.vos_raw_dataset import VOSRawDataset
 from training.dataset.vos_sampler import VOSSampler
 from training.dataset.vos_segment_loader import JSONSegmentLoader
-
 from training.utils.data_utils import Frame, Object, VideoDatapoint
 
 MAX_RETRIES = 100
@@ -49,7 +47,6 @@ class VOSDataset(VisionDataset):
         self.target_segments_available = target_segments_available
 
     def _get_datapoint(self, idx):
-
         for retry in range(MAX_RETRIES):
             try:
                 if isinstance(idx, torch.Tensor):
@@ -104,9 +101,9 @@ class VOSDataset(VisionDataset):
             for obj_id in sampled_object_ids:
                 # Extract the segment
                 if obj_id in segments:
-                    assert (
-                        segments[obj_id] is not None
-                    ), "None targets are not supported"
+                    assert segments[obj_id] is not None, (
+                        "None targets are not supported"
+                    )
                     # segment is uint8 and remains uint8 throughout the transforms
                     segment = segments[obj_id].to(torch.uint8)
                 else:
