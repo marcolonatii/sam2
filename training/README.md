@@ -25,7 +25,9 @@ To get started with the training code, we provide a simple example to fine-tune 
 - Download the MOSE dataset using one of the provided links from [here](https://github.com/henghuiding/MOSE-api?tab=readme-ov-file#download).
 
 #### Steps to fine-tune on MOSE:
-- Install the packages required for training by running `pip install -e ".[dev]"`.
+- Install the packages required for training:
+  - **With uv (recommended)**: `uv sync --extra dev`
+  - **With pip**: `pip install -e ".[dev]"`
 - Set the paths for MOSE dataset in `configs/sam2.1_training/sam2.1_hiera_b+_MOSE_finetune.yaml`.
     ```yaml
     dataset:
