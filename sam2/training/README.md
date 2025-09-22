@@ -14,7 +14,7 @@ The training code is organized into the following subfolders:
 * `loss_fns.py`: This file has the main loss class (`MultiStepMultiMasksAndIous`) used for training.
 * `optimizer.py`:  This file contains all optimizer utils that support arbitrary schedulers.
 * `trainer.py`: This file contains the `Trainer` class that accepts all the `Hydra` configurable modules (model, optimizer, datasets, etc..) and implements the main train/eval loop.
-* `train.py`: This script is used to launch training jobs. It supports single and multi-node jobs. For usage, please check the [Getting Started](README.md#getting-started) section or run `python training/train.py -h`
+* `train.py`: This script is used to launch training jobs. It supports single and multi-node jobs. For usage, please check the [Getting Started](README.md#getting-started) section or run `uv run sam2-train -h`
 
 ## Getting Started
 
@@ -81,36 +81,36 @@ The code supports training on images and videos (similar to how SAM 2 is trained
 ```yaml
 data:
   train:
-    _target_: training.dataset.sam2_datasets.TorchTrainMixedDataset 
+    _target_: sam2.training.dataset.sam2_datasets.TorchTrainMixedDataset 
     phases_per_epoch: ${phases_per_epoch} # Chunks a single epoch into smaller phases
     batch_sizes: # List of batch sizes corresponding to each dataset
     - ${bs1} # Batch size of dataset 1
     - ${bs2} # Batch size of dataset 2
     datasets:
     # SA1B as an example of an image dataset
-    - _target_: training.dataset.vos_dataset.VOSDataset
+    - _target_: sam2.training.dataset.vos_dataset.VOSDataset
       training: true
       video_dataset:
-        _target_: training.dataset.vos_raw_dataset.SA1BRawDataset
+        _target_: sam2.training.dataset.vos_raw_dataset.SA1BRawDataset
         img_folder: ${path_to_img_folder}
         gt_folder: ${path_to_gt_folder}
         file_list_txt: ${path_to_train_filelist} # Optional
       sampler:
-        _target_: training.dataset.vos_sampler.RandomUniformSampler
+        _target_: sam2.training.dataset.vos_sampler.RandomUniformSampler
         num_frames: 1
         max_num_objects: ${max_num_objects_per_image}
       transforms: ${image_transforms}
     # SA-V as an example of a video dataset
-    - _target_: training.dataset.vos_dataset.VOSDataset
+    - _target_: sam2.training.dataset.vos_dataset.VOSDataset
       training: true
       video_dataset:
-        _target_: training.dataset.vos_raw_dataset.JSONRawDataset
+        _target_: sam2.training.dataset.vos_raw_dataset.JSONRawDataset
         img_folder: ${path_to_img_folder}
         gt_folder: ${path_to_gt_folder}
         file_list_txt: ${path_to_train_filelist} # Optional
         ann_every: 4
       sampler:
-        _target_: training.dataset.vos_sampler.RandomUniformSampler
+        _target_: sam2.training.dataset.vos_sampler.RandomUniformSampler
         num_frames: 8 # Number of frames per video
         max_num_objects: ${max_num_objects_per_video}
         reverse_time_prob: ${reverse_time_prob} # probability to reverse video
@@ -120,7 +120,7 @@ data:
     pin_memory: True
     drop_last: True
     collate_fn:
-    _target_: training.utils.data_utils.collate_fn
+    _target_: sam2.training.utils.data_utils.collate_fn
     _partial_: true
     dict_key: all
 ```

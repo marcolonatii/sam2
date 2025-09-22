@@ -226,7 +226,7 @@ See [sav_dataset/README.md](sav_dataset/README.md) for details.
   run("configs/sam2.1_training/sam2.1_hiera_b+_MOSE_finetune.yaml", use_cluster=0, num_gpus=8)
   ```
 
-You can train or fine-tune SAM 2 on custom datasets of images, videos, or both. Please check the training [README](training/README.md) on how to get started.
+You can train or fine-tune SAM 2 on custom datasets of images, videos, or both. Please check the training [README](sam2/training/README.md) on how to get started.
 
 ## Web demo for SAM 2
 
