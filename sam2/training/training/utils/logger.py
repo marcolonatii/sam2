@@ -19,7 +19,7 @@ from numpy import ndarray
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
 
-from training.utils.train_utils import get_machine_local_and_dist_rank, makedir
+from sam2.training.utils.train_utils import get_machine_local_and_dist_rank, makedir
 
 Scalar = Union[Tensor, ndarray, int, float]
 

@@ -12,9 +12,9 @@ import torch.distributed
 import torch.nn as nn
 import torch.nn.functional as F
 
-from training.trainer import CORE_LOSS_KEY
+from sam2.training.trainer import CORE_LOSS_KEY
 
-from training.utils.distributed import get_world_size, is_dist_avail_and_initialized
+from sam2.training.utils.distributed import get_world_size, is_dist_avail_and_initialized
 
 
 def dice_loss(inputs, targets, num_objects, loss_on_multimask=False):

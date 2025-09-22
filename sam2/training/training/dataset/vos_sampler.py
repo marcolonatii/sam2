@@ -8,7 +8,7 @@ import random
 from dataclasses import dataclass
 from typing import List
 
-from training.dataset.vos_segment_loader import LazySegments
+from sam2.training.dataset.vos_segment_loader import LazySegments
 
 MAX_RETRIES = 1000
 

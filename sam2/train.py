@@ -3,8 +3,8 @@ from typing import Optional, Sequence
 
 from hydra import initialize_config_module
 
-from training.train import main as _main
-from training.utils.train_utils import register_omegaconf_resolvers
+from sam2.training.train import main as _main
+from sam2.training.utils.train_utils import register_omegaconf_resolvers
 
 
 def cli(argv: Optional[Sequence[str]] = None) -> None:

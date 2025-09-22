@@ -21,7 +21,7 @@ from PIL import Image as PILImage
 
 from torchvision.transforms import InterpolationMode
 
-from training.utils.data_utils import VideoDatapoint
+from sam2.training.utils.data_utils import VideoDatapoint
 
 
 def hflip(datapoint, index):

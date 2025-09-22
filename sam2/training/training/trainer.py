@@ -22,20 +22,20 @@ import torch.nn as nn
 from hydra.utils import instantiate
 from iopath.common.file_io import g_pathmgr
 
-from training.optimizer import construct_optimizer
+from sam2.training.optimizer import construct_optimizer
 
-from training.utils.checkpoint_utils import (
+from sam2.training.utils.checkpoint_utils import (
     assert_skipped_parameters_are_frozen,
     exclude_params_matching_unix_pattern,
     load_state_dict_into_model,
     with_check_parameter_frozen,
 )
-from training.utils.data_utils import BatchedVideoDatapoint
-from training.utils.distributed import all_reduce_max, barrier, get_rank
+from sam2.training.utils.data_utils import BatchedVideoDatapoint
+from sam2.training.utils.distributed import all_reduce_max, barrier, get_rank
 
-from training.utils.logger import Logger, setup_logging
+from sam2.training.utils.logger import Logger, setup_logging
 
-from training.utils.train_utils import (
+from sam2.training.utils.train_utils import (
     AverageMeter,
     collect_dict_keys,
     DurationMeter,
