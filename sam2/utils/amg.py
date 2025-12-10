@@ -203,38 +203,35 @@ def generate_crop_boxes(
     im_size: Tuple[int, ...], n_layers: int, overlap_ratio: float
 ) -> Tuple[List[List[int]], List[int]]:
     """
-    Generates a list of crop boxes of different sizes. Each layer
-    has (2**i)**2 boxes for the ith layer.
+    Generates crop boxes only for the finest (smallest) layer.
+    The finest layer is the last one: i_layer = n_layers - 1,
+    which has (2**i_layer)**2 boxes.
     """
     crop_boxes, layer_idxs = [], []
     im_h, im_w = im_size
     short_side = min(im_h, im_w)
-
-    # Original image
-    crop_boxes.append([0, 0, im_w, im_h])
-    layer_idxs.append(0)
-
+    
     def crop_len(orig_len, n_crops, overlap):
         return int(math.ceil((overlap * (n_crops - 1) + orig_len) / n_crops))
 
-    for i_layer in range(n_layers):
-        n_crops_per_side = 2 ** (i_layer + 1)
-        overlap = int(overlap_ratio * short_side * (2 / n_crops_per_side))
+    # Only finest layer (last one)
+    i_layer = n_layers - 1
+    n_crops_per_side = 2 ** (i_layer + 1)
+    overlap = int(overlap_ratio * short_side * (2 / n_crops_per_side))
 
-        crop_w = crop_len(im_w, n_crops_per_side, overlap)
-        crop_h = crop_len(im_h, n_crops_per_side, overlap)
+    crop_w = crop_len(im_w, n_crops_per_side, overlap)
+    crop_h = crop_len(im_h, n_crops_per_side, overlap)
 
-        crop_box_x0 = [int((crop_w - overlap) * i) for i in range(n_crops_per_side)]
-        crop_box_y0 = [int((crop_h - overlap) * i) for i in range(n_crops_per_side)]
+    crop_box_x0 = [int((crop_w - overlap) * i) for i in range(n_crops_per_side)]
+    crop_box_y0 = [int((crop_h - overlap) * i) for i in range(n_crops_per_side)]
 
-        # Crops in XYWH format
-        for x0, y0 in product(crop_box_x0, crop_box_y0):
-            box = [x0, y0, min(x0 + crop_w, im_w), min(y0 + crop_h, im_h)]
-            crop_boxes.append(box)
-            layer_idxs.append(i_layer + 1)
+    # Crops in XYWH format (only finest layer)
+    for x0, y0 in product(crop_box_x0, crop_box_y0):
+        box = [x0, y0, min(x0 + crop_w, im_w), min(y0 + crop_h, im_h)]
+        crop_boxes.append(box)
+        layer_idxs.append(i_layer)
 
     return crop_boxes, layer_idxs
-
 
 def uncrop_boxes_xyxy(boxes: torch.Tensor, crop_box: List[int]) -> torch.Tensor:
     x0, y0, _, _ = crop_box
