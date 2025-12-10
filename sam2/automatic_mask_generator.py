@@ -236,7 +236,7 @@ class SAM2AutomaticMaskGenerator:
             after = get_gpu_mem()
             data.cat(crop_data)
             logs.append((crop_box, layer_idx, before, after))
-
+        print(logs)
         # Remove duplicate masks between crops
         if len(crop_boxes) > 1:
             # Prefer masks from smaller crops
