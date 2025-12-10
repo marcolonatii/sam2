@@ -263,8 +263,18 @@ class SAM2AutomaticMaskGenerator:
         x0, y0, x1, y1 = crop_box
         cropped_im = image[y0:y1, x0:x1, :]
         cropped_im_size = cropped_im.shape[:2]
+        mem_before_embed = get_gpu_mem()
+        print(
+            f"[layer {crop_layer_idx} | crop {crop_box}] "
+            f"before embed: {mem_before_embed:.1f} MB"
+        )
         self.predictor.set_image(cropped_im)
-
+        mem_after_embed = get_gpu_mem()
+        print(
+            f"[layer {crop_layer_idx} | crop {crop_box}] "
+            f"after embed:  {mem_after_embed:.1f} MB "
+            f"(+{mem_after_embed - mem_before_embed:.1f} MB)"
+        )
         # Get points for this crop
         points_scale = np.array(cropped_im_size)[None, ::-1]
         points_for_image = self.point_grids[crop_layer_idx] * points_scale
@@ -315,13 +325,19 @@ class SAM2AutomaticMaskGenerator:
         in_labels = torch.ones(
             in_points.shape[0], dtype=torch.int, device=in_points.device
         )
+        mem_before_fwd = get_gpu_mem()
         masks, iou_preds, low_res_masks = self.predictor._predict(
             in_points[:, None, :],
             in_labels[:, None],
             multimask_output=self.multimask_output,
             return_logits=True,
         )
-
+        mem_after_fwd = get_gpu_mem()
+        print(
+            f"[batch forward] before={mem_before_fwd:.1f} MB | "
+            f"after={mem_after_fwd:.1f} MB | "
+            f"diff={mem_after_fwd - mem_before_fwd:.1f} MB"
+        )
         # Serialize predictions and store in MaskData
         data = MaskData(
             masks=masks.flatten(0, 1),
