@@ -1,3 +1,4 @@
+import torch
 #Track VRAM
 def get_gpu_mem(device=None):
     """
