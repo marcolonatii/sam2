@@ -114,14 +114,12 @@ class InferenceAPI:
         self.inference_lock = Lock()
 
     def _get_embedding_cache_path(self, image_input: str) -> Optional[Path]:
-        """Return cache file path for a local image, or None if unsupported."""
         image_path = Path(image_input)
         if not image_path.exists():
             return None
         return image_path.parent / "temp" / f"{image_path.stem}_sam2_embed.pt"
 
     def _load_cached_embedding(self, image_input: str) -> bool:
-        """Load cached embedding into the predictor if it exists and is fresh."""
         cache_path = self._get_embedding_cache_path(image_input)
         if cache_path is None or not cache_path.is_file():
             return False
@@ -173,7 +171,6 @@ class InferenceAPI:
         return True
 
     def _save_embedding_cache(self, image_input: str) -> Optional[Path]:
-        """Persist current image embedding to disk under the image's temp/ dir."""
         cache_path = self._get_embedding_cache_path(image_input)
         if cache_path is None or self.img_predictor._features is None:
             return None
@@ -198,11 +195,6 @@ class InferenceAPI:
         return cache_path
 
     def precompute_image_embedding(self, image_input: str) -> Tuple[Optional[Path], bool]:
-        """
-        Compute and cache image embedding ahead of time.
-
-        Returns a tuple of (cache_path, reused_cache_flag).
-        """
         cache_path = self._get_embedding_cache_path(image_input)
         if cache_path is None:
             raise FileNotFoundError(f"image not found: {image_input}")
@@ -220,6 +212,17 @@ class InferenceAPI:
                 raise RuntimeError("failed to persist embedding cache to disk")
 
         return saved_path or cache_path, False
+
+    def remove_embedding_cache(self, image_input: str) -> bool:
+        cache_path = self._get_embedding_cache_path(image_input)
+        if cache_path is None or not cache_path.exists():
+            return False
+        try:
+            cache_path.unlink()
+            return True
+        except Exception:
+            logger.exception("failed to delete cache %s", cache_path)
+            return False
 
     def _load_image(self, image_input: str) -> Image.Image:
         """Load an image from a data URI, local path, or URL."""

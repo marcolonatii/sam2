@@ -104,6 +104,21 @@ def precompute_embedding() -> Response:
         }
     )
 
+@app.route("/remove_embedding", methods=["POST"])
+def remove_embedding() -> Response:
+    data = request.get_json(silent=True) or {}
+    image_input = data.get("url") or data.get("path")
+    if not image_input:
+        return jsonify({"error": "url or path is required"}), 400
+
+    removed = inference_api.remove_embedding_cache(image_input)
+    return jsonify(
+        {
+            "removed": bool(removed),
+            "cache_path": str(inference_api._get_embedding_cache_path(image_input) or ""),
+        }
+    )
+
 
 @app.route(f"/mask", methods=["POST"])
 def predict_image() -> Response:
