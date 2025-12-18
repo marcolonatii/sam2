@@ -83,12 +83,34 @@ def send_uploaded_video(path: str):
         )
     except:
         raise ValueError("resource not found")
-    
+
+@app.route("/precompute_embedding", methods=["POST"])
+def precompute_embedding() -> Response:
+    data = request.get_json(silent=True) or {}
+    image_input = data.get("url") or data.get("path")
+    if not image_input:
+        return jsonify({"error": "url or path is required"}), 400
+
+    try:
+        cache_path, reused = inference_api.precompute_image_embedding(image_input)
+    except Exception as exc:
+        logger.exception("failed to precompute embedding")
+        return jsonify({"error": f"failed to precompute embedding: {exc}"}), 500
+
+    return jsonify(
+        {
+            "cache_path": str(cache_path),
+            "status": "reused" if reused else "created",
+        }
+    )
+
+
 @app.route(f"/mask", methods=["POST"])
 def predict_image() -> Response:
     data = request.json
+
     start_time = time.time()
-    res = inference_api.predict_image(data["url"],data["points"],data["labels"],None,True)
+    res = inference_api.predict_image(data["url"], data["points"], data["labels"], None, True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"mask生成时间: {elapsed_time:.6f} 秒")
