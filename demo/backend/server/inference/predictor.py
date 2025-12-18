@@ -10,7 +10,7 @@ import uuid
 import base64
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, Generator, List
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -99,19 +99,130 @@ class InferenceAPI:
         self.img_predictor = SAM2ImagePredictor(sam2_model)
         self.mask_generator = SAM2AutomaticMaskGenerator(
             sam2_model,
-            points_per_side=32,
+            points_per_side=16,
             points_per_batch=64,
-            pred_iou_thresh=0.7,
-            stability_score_thresh=0.92,
+            pred_iou_thresh=0.8,
+            stability_score_thresh=0.95,
             stability_score_offset=0.7,
             crop_n_layers=1,
-            box_nms_thresh=0.7,
+            box_nms_thresh=0.4,
             crop_n_points_downscale_factor=2,
             min_mask_region_area=100.0,
-            use_m2m=True
+            use_m2m=False
         )
         self.current_img = None
         self.inference_lock = Lock()
+
+    def _get_embedding_cache_path(self, image_input: str) -> Optional[Path]:
+        image_path = Path(image_input)
+        if not image_path.exists():
+            return None
+        return image_path.parent / "temp" / f"{image_path.stem}_sam2_embed.pt"
+
+    def _load_cached_embedding(self, image_input: str) -> bool:
+        cache_path = self._get_embedding_cache_path(image_input)
+        if cache_path is None or not cache_path.is_file():
+            return False
+
+        image_path = Path(image_input)
+        try:
+            if cache_path.stat().st_mtime < image_path.stat().st_mtime:
+                return False
+        except OSError:
+            return False
+
+        try:
+            cache = torch.load(cache_path, map_location=self.device)
+        except Exception:
+            logger.exception("failed to read cached embedding")
+            return False
+
+        if cache.get("model_size") not in (None, MODEL_SIZE):
+            logger.warning(
+                "cached embedding model size %s mismatches current %s",
+                cache.get("model_size"),
+                MODEL_SIZE,
+            )
+            return False
+
+        features = cache.get("features")
+        orig_hw = cache.get("orig_hw")
+        if not features or orig_hw is None:
+            return False
+
+        try:
+            image_embed = features["image_embed"].to(self.device)
+            high_res_feats = [
+                feat.to(self.device) for feat in features["high_res_feats"]
+            ]
+        except Exception:
+            logger.exception("failed to move cached embedding to device")
+            return False
+
+        self.img_predictor.reset_predictor()
+        self.img_predictor._features = {
+            "image_embed": image_embed,
+            "high_res_feats": high_res_feats,
+        }
+        self.img_predictor._orig_hw = orig_hw
+        self.img_predictor._is_image_set = True
+        self.img_predictor._is_batch = False
+        self.current_img = image_input
+        return True
+
+    def _save_embedding_cache(self, image_input: str) -> Optional[Path]:
+        cache_path = self._get_embedding_cache_path(image_input)
+        if cache_path is None or self.img_predictor._features is None:
+            return None
+
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        features = self.img_predictor._features
+        try:
+            payload = {
+                "model_size": MODEL_SIZE,
+                "orig_hw": self.img_predictor._orig_hw,
+                "features": {
+                    "image_embed": features["image_embed"].detach().cpu(),
+                    "high_res_feats": [
+                        feat.detach().cpu() for feat in features["high_res_feats"]
+                    ],
+                },
+            }
+            torch.save(payload, cache_path)
+        except Exception:
+            logger.exception("failed to save embedding cache")
+            return None
+        return cache_path
+
+    def precompute_image_embedding(self, image_input: str) -> Tuple[Optional[Path], bool]:
+        cache_path = self._get_embedding_cache_path(image_input)
+        if cache_path is None:
+            raise FileNotFoundError(f"image not found: {image_input}")
+
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.inference_lock:
+            if self._load_cached_embedding(image_input):
+                return cache_path, True
+
+            img = self._load_image(image_input)
+            self.img_predictor.set_image(img)
+            self.current_img = image_input
+            saved_path = self._save_embedding_cache(image_input)
+            if saved_path is None:
+                raise RuntimeError("failed to persist embedding cache to disk")
+
+        return saved_path or cache_path, False
+
+    def remove_embedding_cache(self, image_input: str) -> bool:
+        cache_path = self._get_embedding_cache_path(image_input)
+        if cache_path is None or not cache_path.exists():
+            return False
+        try:
+            cache_path.unlink()
+            return True
+        except Exception:
+            logger.exception("failed to delete cache %s", cache_path)
+            return False
 
     def _load_image(self, image_input: str) -> Image.Image:
         """Load an image from a data URI, local path, or URL."""
@@ -131,9 +242,12 @@ class InferenceAPI:
         print(url[:50],input_points,input_labels,input_box,multimask_output)
         with self.inference_lock:
             if self.current_img != url:
-                img = self._load_image(url)
-                self.img_predictor.set_image(img)
-                self.current_img = url            
+                loaded_from_cache = self._load_cached_embedding(url)
+                if not loaded_from_cache:
+                    img = self._load_image(url)
+                    self.img_predictor.set_image(img)
+                    self.current_img = url
+                    self._save_embedding_cache(url)
             masks, scores, logits = self.img_predictor.predict(
                 point_coords=np.array(input_points),
                 point_labels=np.array(input_labels),
@@ -162,6 +276,33 @@ class InferenceAPI:
             mask.save(byte_io, format="PNG")
             byte_io.seek(0)
             return byte_io.getvalue()
+
+    def generate_masks_base64(self, image_input: str):
+        """生成全局 mask，直接以 base64 PNG 列表返回，不落盘。"""
+        print(image_input[:50])
+        with self.inference_lock:
+            img = self._load_image(image_input)
+            masks = self.mask_generator.generate(np.array(img))
+
+        payload: List[Dict[str, Any]] = []
+        for ann in masks:
+            seg = ann.get("segmentation")
+            if seg is None:
+                continue
+            mask_arr = np.array(seg).astype(np.uint8)
+            mask_arr = np.squeeze(mask_arr)
+            if mask_arr.ndim != 2:
+                continue
+            h, w = mask_arr.shape
+            mask_img = Image.fromarray(mask_arr * 255)
+            buf = BytesIO()
+            mask_img.save(buf, format="PNG")
+            buf.seek(0)
+            payload.append({
+                "size": [int(h), int(w)],
+                "png_base64": base64.b64encode(buf.getvalue()).decode("ascii"),
+            })
+        return payload
 
     def save_masks_to_dir(
         self, image_input: str, output_dir: Path, filename_prefix: str = "mask"

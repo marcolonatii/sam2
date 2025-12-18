@@ -83,12 +83,49 @@ def send_uploaded_video(path: str):
         )
     except:
         raise ValueError("resource not found")
-    
+
+@app.route("/precompute_embedding", methods=["POST"])
+def precompute_embedding() -> Response:
+    data = request.get_json(silent=True) or {}
+    image_input = data.get("url") or data.get("path")
+    if not image_input:
+        return jsonify({"error": "url or path is required"}), 400
+
+    try:
+        cache_path, reused = inference_api.precompute_image_embedding(image_input)
+    except Exception as exc:
+        logger.exception("failed to precompute embedding")
+        return jsonify({"error": f"failed to precompute embedding: {exc}"}), 500
+
+    return jsonify(
+        {
+            "cache_path": str(cache_path),
+            "status": "reused" if reused else "created",
+        }
+    )
+
+@app.route("/remove_embedding", methods=["POST"])
+def remove_embedding() -> Response:
+    data = request.get_json(silent=True) or {}
+    image_input = data.get("url") or data.get("path")
+    if not image_input:
+        return jsonify({"error": "url or path is required"}), 400
+
+    removed = inference_api.remove_embedding_cache(image_input)
+    return jsonify(
+        {
+            "removed": bool(removed),
+            "cache_path": str(inference_api._get_embedding_cache_path(image_input) or ""),
+        }
+    )
+
+
 @app.route(f"/mask", methods=["POST"])
 def predict_image() -> Response:
     data = request.json
+
     start_time = time.time()
-    res = inference_api.predict_image(data["url"],data["points"],data["labels"],None,True)
+    res = inference_api.predict_image(data["url"], data["points"], data["labels"], None, True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"mask生成时间: {elapsed_time:.6f} 秒")
@@ -148,6 +185,27 @@ def image_masks_save() -> Response:
             "masks": masks_payload,
         }
     )
+
+@app.route("/image_masks", methods=["POST"])
+def image_masks() -> Response:
+    """
+    输入图片（url/path/data uri），直接返回全局 mask（base64 PNG 列表），不落盘。
+    """
+    data = request.get_json(silent=True) or {}
+    image_input = data.get("url") or data.get("path")
+    if not image_input:
+        return jsonify({"error": "url or path is required"}), 400
+
+    try:
+        masks_payload = inference_api.generate_masks_base64(image_input=image_input)
+    except Exception as exc:
+        logger.exception("failed to generate masks in memory")
+        return jsonify({"error": f"failed to generate masks: {exc}"}), 500
+
+    return jsonify({
+        "count": len(masks_payload),
+        "masks": masks_payload,
+    })
 
 
 # TOOD: Protect route with ToS permission check
@@ -214,4 +272,4 @@ app.add_url_rule(
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=7263)
