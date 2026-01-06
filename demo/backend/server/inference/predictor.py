@@ -8,13 +8,14 @@ import logging
 import os
 import uuid
 import base64
+import hashlib
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import numpy as np
 import torch
-from app_conf import APP_ROOT, MODEL_SIZE
+from app_conf import APP_ROOT, MODEL_SIZE, TEMP_PATH
 from inference.data_types import (
     AddMaskRequest,
     AddPointsRequest,
@@ -116,8 +117,38 @@ class InferenceAPI:
     def _get_embedding_cache_path(self, image_input: str) -> Optional[Path]:
         image_path = Path(image_input)
         if not image_path.exists():
-            return None
+            cache_key = self._get_image_cache_key(image_input)
+            if cache_key is None:
+                return None
+            return TEMP_PATH / f"sam2_embed_{cache_key}.pt"
         return image_path.parent / "temp" / f"{image_path.stem}_sam2_embed.pt"
+
+    def _get_image_cache_key(self, image_input: str) -> Optional[str]:
+        raw_bytes = self._decode_image_bytes_for_cache(image_input)
+        if raw_bytes is None:
+            return None
+        return hashlib.sha256(raw_bytes).hexdigest()
+
+    def _decode_image_bytes_for_cache(self, image_input: str) -> Optional[bytes]:
+        if image_input.startswith("data:"):
+            try:
+                _, encoded = image_input.split(",", 1)
+            except ValueError:
+                return None
+        else:
+            encoded = image_input
+
+        encoded = "".join(encoded.split())
+        if not encoded:
+            return None
+
+        padding = (-len(encoded)) % 4
+        if padding:
+            encoded += "=" * padding
+        try:
+            return base64.b64decode(encoded, validate=True)
+        except Exception:
+            return None
 
     def _load_cached_embedding(self, image_input: str) -> bool:
         cache_path = self._get_embedding_cache_path(image_input)
@@ -125,11 +156,12 @@ class InferenceAPI:
             return False
 
         image_path = Path(image_input)
-        try:
-            if cache_path.stat().st_mtime < image_path.stat().st_mtime:
+        if image_path.exists():
+            try:
+                if cache_path.stat().st_mtime < image_path.stat().st_mtime:
+                    return False
+            except OSError:
                 return False
-        except OSError:
-            return False
 
         try:
             cache = torch.load(cache_path, map_location=self.device)
