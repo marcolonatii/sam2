@@ -173,6 +173,7 @@ class Hiera(nn.Module):
 
     def __init__(
         self,
+        in_chans: int = 3,
         embed_dim: int = 96,  # initial embed dim
         num_heads: int = 1,  # initial number of heads
         drop_path_rate: float = 0.0,  # stochastic depth
@@ -211,6 +212,7 @@ class Hiera(nn.Module):
         self.return_interm_layers = return_interm_layers
 
         self.patch_embed = PatchEmbed(
+            in_chans=in_chans,
             embed_dim=embed_dim,
         )
         # Which blocks have global att?

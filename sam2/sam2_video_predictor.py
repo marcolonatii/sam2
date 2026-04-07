@@ -30,6 +30,8 @@ class SAM2VideoPredictor(SAM2Base):
         # if `add_all_frames_to_correct_as_cond` is True, we also append to the conditioning frame list any frame that receives a later correction click
         # if `add_all_frames_to_correct_as_cond` is False, we conditioning frame list to only use those initial conditioning frames
         add_all_frames_to_correct_as_cond=False,
+        img_mean=(0.485, 0.456, 0.406),
+        img_std=(0.229, 0.224, 0.225),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -37,6 +39,8 @@ class SAM2VideoPredictor(SAM2Base):
         self.non_overlap_masks = non_overlap_masks
         self.clear_non_cond_mem_around_input = clear_non_cond_mem_around_input
         self.add_all_frames_to_correct_as_cond = add_all_frames_to_correct_as_cond
+        self.img_mean = img_mean
+        self.img_std = img_std
 
     @torch.inference_mode()
     def init_state(
@@ -52,6 +56,8 @@ class SAM2VideoPredictor(SAM2Base):
             video_path=video_path,
             image_size=self.image_size,
             offload_video_to_cpu=offload_video_to_cpu,
+            img_mean=self.img_mean,
+            img_std=self.img_std,
             async_loading_frames=async_loading_frames,
             compute_device=compute_device,
         )

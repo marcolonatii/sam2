@@ -89,13 +89,16 @@ def mask_to_box(masks: torch.Tensor):
     return bbox_coords
 
 
-def _load_img_as_tensor(img_path, image_size):
+def _load_img_as_tensor(img_path, image_size, num_channels=3):
     img_pil = Image.open(img_path)
-    img_np = np.array(img_pil.convert("RGB").resize((image_size, image_size)))
+    pil_mode = "L" if num_channels == 1 else "RGB"
+    img_np = np.array(img_pil.convert(pil_mode).resize((image_size, image_size)))
     if img_np.dtype == np.uint8:  # np.uint8 is expected for JPEG images
         img_np = img_np / 255.0
     else:
         raise RuntimeError(f"Unknown image dtype: {img_np.dtype} on {img_path}")
+    if num_channels == 1:
+        img_np = img_np[:, :, None]  # (H, W) -> (H, W, 1)
     img = torch.from_numpy(img_np).permute(2, 0, 1)
     video_width, video_height = img_pil.size  # the original video size
     return img, video_height, video_width
@@ -152,8 +155,9 @@ class AsyncVideoFrameLoader:
         if img is not None:
             return img
 
+        num_channels = self.img_mean.shape[0]
         img, video_height, video_width = _load_img_as_tensor(
-            self.img_paths[index], self.image_size
+            self.img_paths[index], self.image_size, num_channels
         )
         self.video_height = video_height
         self.video_width = video_width
@@ -264,9 +268,10 @@ def load_video_frames_from_jpg_images(
         )
         return lazy_images, lazy_images.video_height, lazy_images.video_width
 
-    images = torch.zeros(num_frames, 3, image_size, image_size, dtype=torch.float32)
+    num_channels = img_mean.shape[0]  # img_mean is already a tensor here (line 253)
+    images = torch.zeros(num_frames, num_channels, image_size, image_size, dtype=torch.float32)
     for n, img_path in enumerate(tqdm(img_paths, desc="frame loading (JPEG)")):
-        images[n], video_height, video_width = _load_img_as_tensor(img_path, image_size)
+        images[n], video_height, video_width = _load_img_as_tensor(img_path, image_size, num_channels)
     if not offload_video_to_cpu:
         images = images.to(compute_device)
         img_mean = img_mean.to(compute_device)
