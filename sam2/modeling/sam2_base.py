@@ -4,6 +4,8 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
+from typing import Optional
+
 import torch
 import torch.distributed
 import torch.nn.functional as F
@@ -93,8 +95,15 @@ class SAM2Base(torch.nn.Module):
         # extra arguments used to construct the SAM mask decoder; if not None, it should be a dict of kwargs to be passed into `MaskDecoder` class.
         sam_mask_decoder_extra_args=None,
         compile_image_encoder: bool = False,
+        # DINOv2 fusion modules (optional)
+        dino_encoder: Optional[torch.nn.Module] = None,
+        cross_attn_fuser: Optional[torch.nn.Module] = None,
     ):
         super().__init__()
+
+        # DINOv2 cross-attention fusion modules (None = disabled)
+        self.dino_encoder = dino_encoder
+        self.cross_attn_fuser = cross_attn_fuser
 
         # Part 1: the image backbone
         self.image_encoder = image_encoder
@@ -738,6 +747,7 @@ class SAM2Base(torch.nn.Module):
         num_frames,
         track_in_reverse,
         prev_sam_mask_logits,
+        image: Optional[torch.Tensor] = None,
     ):
         current_out = {"point_inputs": point_inputs, "mask_inputs": mask_inputs}
         # High-resolution feature maps for the SAM head, reshape (HW)BC => BCHW
@@ -768,6 +778,14 @@ class SAM2Base(torch.nn.Module):
                 num_frames=num_frames,
                 track_in_reverse=track_in_reverse,
             )
+            # DINOv2 cross-attention fusion (if modules are present and image is provided)
+            if (
+                image is not None
+                and self.dino_encoder is not None
+                and self.cross_attn_fuser is not None
+            ):
+                dino_feats = self.dino_encoder(image)  # [B, N_patches, 256]
+                pix_feat = self.cross_attn_fuser(pix_feat, dino_feats)  # [B, 256, H, W]
             # apply SAM-style segmentation head
             # here we might feed previously predicted low-res SAM mask logits into the SAM mask decoder,
             # e.g. in demo where such logits come from earlier interaction instead of correction sampling
@@ -831,6 +849,8 @@ class SAM2Base(torch.nn.Module):
         run_mem_encoder=True,
         # The previously predicted SAM mask logits (which can be fed together with new clicks in demo).
         prev_sam_mask_logits=None,
+        # Raw image tensor for DINOv2 fusion (optional; only used when dino_encoder is set)
+        image: Optional[torch.Tensor] = None,
     ):
         current_out, sam_outputs, _, _ = self._track_step(
             frame_idx,
@@ -844,6 +864,7 @@ class SAM2Base(torch.nn.Module):
             num_frames,
             track_in_reverse,
             prev_sam_mask_logits,
+            image=image,
         )
 
         (
