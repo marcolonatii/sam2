@@ -6,7 +6,6 @@ __pycache__/
 *.egg*
 build/*
 _C.*
-outputs/*
 checkpoints/*.pt
 demo/backend/checkpoints/*.pt
 masks_sam2/arctic_fox/00000.png
