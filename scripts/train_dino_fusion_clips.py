@@ -173,7 +173,7 @@ def build_model(args):
     )
 
 
-def freeze_and_collect_trainable(model, fusion_lr: float, decoder_lr=None):
+def freeze_and_collect_trainable(model, fusion_lr: float, decoder_lr=None, memory_attn_lr=None):
     for p in model.parameters():
         p.requires_grad = False
 
@@ -186,8 +186,9 @@ def freeze_and_collect_trainable(model, fusion_lr: float, decoder_lr=None):
                 names.append(name)
         return params, names
 
-    fusion_params,  fusion_names  = _collect(["dino_encoder.proj", "cross_attn_fuser"])
-    decoder_params, decoder_names = _collect(["sam_mask_decoder"]) if decoder_lr else ([], [])
+    fusion_params,      fusion_names      = _collect(["dino_encoder.proj", "cross_attn_fuser"])
+    decoder_params,     decoder_names     = _collect(["sam_mask_decoder"]) if decoder_lr else ([], [])
+    memory_attn_params, memory_attn_names = _collect(["memory_attention"]) if memory_attn_lr else ([], [])
 
     total       = sum(p.numel() for p in model.parameters())
     n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -201,11 +202,18 @@ def freeze_and_collect_trainable(model, fusion_lr: float, decoder_lr=None):
         for n in decoder_names:
             p = dict(model.named_parameters())[n]
             print(f"  {n}: {list(p.shape)}")
+    if memory_attn_params:
+        print(f"\nMemory attention trainable ({len(memory_attn_names)} tensors):")
+        for n in memory_attn_names:
+            p = dict(model.named_parameters())[n]
+            print(f"  {n}: {list(p.shape)}")
     print(f"Total trainable: {n_trainable:,} / {total:,} ({n_trainable / total:.4%})\n")
 
     groups = [{"params": fusion_params, "lr": fusion_lr}]
     if decoder_params:
         groups.append({"params": decoder_params, "lr": decoder_lr})
+    if memory_attn_params:
+        groups.append({"params": memory_attn_params, "lr": memory_attn_lr})
     return groups
 
 
@@ -296,7 +304,8 @@ def train_epoch(model, dataloader, optimizer, scaler, device, epoch, args):
     model.train()
     # Keep frozen modules in eval mode so BN/Dropout stats are stable
     model.image_encoder.eval()
-    model.memory_attention.eval()
+    if args.memory_attn_lr is None:
+        model.memory_attention.eval()
     model.memory_encoder.eval()
     if args.decoder_lr is None:
         model.sam_mask_decoder.eval()
@@ -381,6 +390,8 @@ def _make_ckpt(model, epoch, tr_loss, val_loss, args, include_optim=False,
     }
     if args.decoder_lr is not None:
         ckpt["sam_mask_decoder"] = model.sam_mask_decoder.state_dict()
+    if args.memory_attn_lr is not None:
+        ckpt["memory_attention"] = model.memory_attention.state_dict()
     if include_optim and optimizer is not None:
         ckpt["optimizer"] = optimizer.state_dict()
         ckpt["scheduler"] = scheduler.state_dict()
@@ -426,12 +437,14 @@ def main():
                         help="LR for dino_encoder.proj and cross_attn_fuser")
     parser.add_argument("--decoder_lr",   type=float, default=None,
                         help="If set, also fine-tune sam_mask_decoder at this LR")
+    parser.add_argument("--memory_attn_lr", type=float, default=None,
+                        help="If set, also fine-tune memory_attention at this LR")
     parser.add_argument("--weight_decay", type=float, default=1e-4)
     parser.add_argument("--batch_size",   type=int,   default=2,
                         help="Clips per batch (≤2 recommended for 5-frame clips on 24GB GPU)")
     parser.add_argument("--num_workers",  type=int,   default=4)
     parser.add_argument("--log_every",    type=int,   default=10)
-    parser.add_argument("--save_every",   type=int,   default=5)
+    parser.add_argument("--save_every",   type=int,   default=1)
     parser.add_argument("--val_split",    type=float, default=0.15)
     parser.add_argument("--init_weights", type=str,   default=None,
                         help="Fusion checkpoint to warm-start from "
@@ -450,7 +463,7 @@ def main():
     # ---- Model ----
     print("Building SAM2 + DINOv3 fusion model...")
     model        = build_model(args)
-    param_groups = freeze_and_collect_trainable(model, args.lr, args.decoder_lr)
+    param_groups = freeze_and_collect_trainable(model, args.lr, args.decoder_lr, args.memory_attn_lr)
     model        = model.to(device)
 
     if args.init_weights is not None:
@@ -464,6 +477,9 @@ def main():
         if args.decoder_lr is not None and "sam_mask_decoder" in ckpt:
             model.sam_mask_decoder.load_state_dict(ckpt["sam_mask_decoder"])
             print("  Loaded sam_mask_decoder weights.")
+        if args.memory_attn_lr is not None and "memory_attention" in ckpt:
+            model.memory_attention.load_state_dict(ckpt["memory_attention"])
+            print("  Loaded memory_attention weights.")
         print("  Done. Optimizer/scheduler start fresh.\n")
 
     # ---- Dataset ----
@@ -508,7 +524,7 @@ def main():
 
     print(f"\nStarting clip training for {args.epochs} epochs")
     print(
-        f"  LR_fusion={args.lr}  LR_decoder={args.decoder_lr}  "
+        f"  LR_fusion={args.lr}  LR_decoder={args.decoder_lr}  LR_memory_attn={args.memory_attn_lr}  "
         f"wd={args.weight_decay}  batch={args.batch_size}  "
         f"clip_len={args.clip_len}"
     )
