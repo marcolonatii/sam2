@@ -1,35 +1,100 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+"""
+Cross-attention fuser that combines SAM2 memory-conditioned features (query)
+with DINOv2 patch features (key/value) before the SAM mask decoder.
+
+Uses a single cross-attention layer with residual connection and LayerNorm
+(Add & Norm), following the standard Transformer decoder pattern.
+
+Input shapes:
+    SAM2 features (pix_feat): [B, 256, 64, 64]
+    DINOv3 features (dino_feats): [B, 4096, 256]  (64*64 patches, patch size 16)
+
+Output shape:
+    Fused features: [B, 256, 64, 64]
+"""
+
 import torch
 import torch.nn as nn
 
-class CrossAttentionFuser(nn.Module):
-    def __init__(self, embed_dim=256, num_heads=8):
-        super().__init__()
-        self.alpha = nn.Parameter(torch.tensor(0.1))
 
-        self.fuse = nn.Sequential(
-            nn.Conv2d(embed_dim * 2, embed_dim, kernel_size=1),
-            nn.GELU(),
-            nn.Conv2d(embed_dim, embed_dim, kernel_size=3, padding=1),
+class CrossAttentionFuser(nn.Module):
+    """Fuses SAM2 memory-conditioned features with DINOv2 patch features
+    via a single cross-attention layer.
+
+    The SAM2 features serve as the query; DINOv2 features serve as key and value.
+    A residual connection preserves the original SAM2 features, so the module
+    defaults to identity-like behavior before training.
+
+    Args:
+        embed_dim: Embedding dimension for Q, K, V (must match SAM2's
+            hidden_dim, default 256).
+        num_heads: Number of attention heads.
+    """
+
+    def __init__(
+        self,
+        embed_dim: int = 256,
+        num_heads: int = 8,
+    ) -> None:
+        super().__init__()
+
+        self.alpha = nn.Parameter(torch.tensor(0.1))  # Scaling factor for the cross-attention output before adding to SAM features
+
+        self.cross_attn = nn.MultiheadAttention(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            batch_first=True,
         )
 
         self.gate = nn.Sequential(
-            nn.Conv2d(embed_dim * 2, embed_dim, kernel_size=1),
+            nn.Linear(2 * embed_dim, embed_dim),
             nn.GELU(),
-            nn.Conv2d(embed_dim, embed_dim, kernel_size=1),
+            nn.Linear(embed_dim, embed_dim), 
         )
-
-        self.norm = nn.GroupNorm(num_groups=1, num_channels=embed_dim)
-        
-        nn.init.zeros_(self.fuse[-1].weight)
-        nn.init.zeros_(self.fuse[-1].bias)
         nn.init.zeros_(self.gate[-1].weight)
-        nn.init.zeros_(self.gate[-1].bias)
+        nn.init.constant_(self.gate[-1].bias, 0.0)
 
-    def forward(self, sam_features, dino_features):
+        self.norm = nn.LayerNorm(embed_dim)
+
+    def forward(
+        self,
+        sam_features: torch.Tensor,
+        dino_features: torch.Tensor,
+    ) -> torch.Tensor:
+        """Fuse SAM2 and DINOv2 features via cross-attention.
+
+        Args:
+            sam_features: SAM2 memory-conditioned features of shape
+                ``[B, C, H, W]`` (BCHW), typically ``[B, 256, 64, 64]``.
+            dino_features: DINOv2 projected patch tokens of shape
+                ``[B, N_patches, C]``, typically ``[B, 4096, 256]``.
+
+        Returns:
+            Fused features of the same shape as ``sam_features`` (BCHW).
+        """
         B, C, H, W = sam_features.shape
-        dino_map = dino_features.transpose(1, 2).reshape(B, C, H, W)
-        x = torch.cat([sam_features, dino_map], dim=1)
-        delta = self.fuse(x)
-        gate = torch.sigmoid(self.gate(x))
-        fused_features = sam_features + self.alpha * gate * delta
-        return self.norm(fused_features)
+
+        # Flatten SAM features: [B, C, H, W] → [B, H*W, C]
+        q = sam_features.flatten(2).permute(0, 2, 1)  # [B, H*W, C]
+
+        # Cross-attention: Q=SAM, K=V=DINO
+        attn_out, _ = self.cross_attn(
+            query=q,
+            key=dino_features,
+            value=dino_features,
+        )  # [B, H*W, C]
+
+        # Compute gate
+        gate = torch.sigmoid(self.gate(torch.cat([q, attn_out], dim=-1)))
+
+        # Add & Norm (gated residual from original SAM features)
+        fused = self.norm(q + self.alpha * gate * attn_out)  # [B, H*W, C]
+
+        # Reshape back to BCHW
+        return fused.permute(0, 2, 1).reshape(B, C, H, W)
